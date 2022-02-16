@@ -1,5 +1,5 @@
 #!/bin/bash
-# Written by Daniel Slabodar on 1/5/2022 (bugz to: daniel@i-clef.com daniels@weka.io) for Weka.IO
+# Written by Brady Turner on X/X/2022 (bugz to: brady.turner@weka.io)
 # Script to login to remote host and configure passwordless connectivity back to system from which the login is performed for a user and root
 # Script to be run as a user with root permissions
 
