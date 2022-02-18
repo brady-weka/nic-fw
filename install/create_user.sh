@@ -1,6 +1,7 @@
 #!/bin/bash
 # This script would generated superuser weka
 # Please run as root user only in terminal mode
+#
 
 user=`whoami`
 created_user=""
