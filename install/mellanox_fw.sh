@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 #
-# Script to upgrade Mellanox MFT, firmware, and set preferred PCI settings for max performance
-# Run on first host of backend cluster
-# Assumes OFED already installed
+# Script to upgrade/install Mellanox MFT tools/driver firmware and set preferred PCI settings for max performance
+#
+# Assumptions:
+#       OFED installed
+#       Internet access for MFT/driver toolsets
+#       Run on first cluster host if range is given
+#       MFT and MLX variables at top here set to latest
 #
 # Written by Brady Turner brady.turner@weka.io
 #
 # set -x
 #
 
-# EDIT below location for latest MFT tool if upgrading.  Check https://network.nvidia.com/products/adapter-software/firmware-tools/
+# EDIT below location for latest MFT tool. Check https://network.nvidia.com/products/adapter-software/firmware-tools/
 MFT=https://www.mellanox.com/downloads/MFT/mft-4.20.1-14-x86_64-rpm.tgz
 
-# EDIT below location for latest mlxup tool if upgrading MLNX. Check https://network.nvidia.com/support/firmware/mlxup-mft/
+# EDIT below location for latest mlxup tool for firmware updates. Check https://network.nvidia.com/support/firmware/mlxup-mft/
 MLX=https://www.mellanox.com/downloads/firmware/mlxup/4.21.0/SFX/linux_x64/mlxup
 
 #If number of parameters less than 1, give usage
@@ -39,8 +43,9 @@ for HOST in $*; do
                         echo "Next!"
                         continue
                 else
-                        ssh $HOST "cd /tmp; wget -qc $MFT 2>/dev/null"
-                        ssh $HOST yum install -y libelf-dev libelf-devel elfutils-libelf-devel
+                        ssh $HOST "cd /tmp; wget -qcp $MFT &> /dev/null"
+                        ssh $HOST yum install -y libelf-dev libelf-devel elfutils-libelf-devel > /dev/null 2>&1
+                        ssh $HOST apt-get -y install -y libelf-dev libelf-devel elfutils-libelf-devel > /dev/null 2>&1
                         ssh $HOST "cd /tmp; tar -xvf mft*.tgz; cd /tmp/mft-*rpm; sudo ./install.sh > /dev/null 2>&1"
                         echo "Starting mst on host $HOST"
                         ssh $HOST mst start > /dev/null 2>&1; mst version
@@ -61,8 +66,8 @@ for HOST in $*; do
                         exit
                         else
                                 echo $HOST
-                                ssh $HOST "cd /tmp; wget $MFT > /dev/null 2>&1"
-                                ssh $HOST "cd /tmp; tar -xvf mft*.tgz; cd /tmp/mft-*rpm; sudo ./install.sh" # > /dev/null 2>&1"
+                                ssh $HOST "cd /tmp; wget -p $MFT &> /dev/null"
+                                ssh $HOST "cd /tmp; tar -xvf mft*.tgz; cd /tmp/mft-*rpm; sudo ./install.sh > /dev/null 2>&1"
                                 echo "Starting mst on host $HOST"
                                 ssh $HOST "mst start > /dev/null 2>&1; mst version"
                         fi
@@ -82,26 +87,11 @@ for HOST in $*; do
                         echo "Would you like to check for newer version(s)? (yn): "
                         read ANS
                         if [ "$ANS" = "y" ]; then
-                                ssh $HOST "cd /tmp; wget $MLX; chmod +x mlxup; ./mlxup"
+                                ssh $HOST "cd /tmp; wget -p $MLX &> /dev/null; chmod +x mlxup; ./mlxup"
                         else
                                 continue
                         fi
                 fi
-done
-
-NUM_HOSTS=0
-for HOST in $*; do
-        ssh $HOST mst start
-        echo -e "\nYour link type is set to: "
-        ssh $HOST hostname
-        ssh $HOST 'for i in `ls /dev/mst/mt412*f[0-1]`; do echo $i; mlxconfig -d $i q |grep LINK_TYPE; done'
-        echo -e "Is this correct? (yn): "
-        read ANS
-                if [ "$ANS" = "y" ]; then
-        :
-        else
-                echo "done!"
-        fi
 done
 
 echo "Do you want want to update the MLNX settings for max performance? (yn): "
@@ -125,12 +115,11 @@ read ANS
 if [ "$ANS" != "y" ]; then
     exit
 else
-        echo "Rebooting host $HOST now."
-        NUM_HOSTS=1
+        NUM_HOSTS=0
         for HOST in $*; do
         let NUM_HOSTS=NUM_HOSTS+1
-                ssh $HOST "shutdown -r now"
-                #shutdown -r now
+                echo "Rebooting host $HOST now"
+                ssh $HOST "sleep 2; shutdown -r now"&
         done
 fi
 
